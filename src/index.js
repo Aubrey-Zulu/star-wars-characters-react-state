@@ -8,33 +8,34 @@ import CharacterList from './CharacterList';
 import endpoint from './endpoint';
 
 import './styles.scss';
+// fetch actions
+const FETCHING = 'FETCHING';
+const ERROR = 'ERROR';
+const RESPONSE_COMPLETE = 'RESPONSE_COMPLETE';
 
 const reducer = (state, action) => {
-  if (action.type === 'FETCHING') {
-    return {
-      characters: [],
-      loading: true,
-      error: null,
-    };
+  switch (action.type) {
+    case FETCHING:
+      return {
+        characters: [],
+        loading: true,
+        error: null,
+      };
+    case ERROR:
+      return {
+        characters: [],
+        loading: false,
+        error: action.payload.error,
+      };
+    case RESPONSE_COMPLETE:
+      return {
+        characters: action.payload.characters,
+        loading: false,
+        error: null,
+      };
+    default:
+      return state;
   }
-
-  if (action.type === 'RESPONSE_COMPLETE') {
-    return {
-      characters: action.payload.characters,
-      loading: false,
-      error: null,
-    };
-  }
-
-  if (action.type === 'ERROR') {
-    return {
-      characters: [],
-      loading: false,
-      error: action.payload.error,
-    };
-  }
-
-  return state;
 };
 
 const initialState = {
@@ -43,8 +44,30 @@ const initialState = {
   characters: [],
 };
 
-const Application = () => {
+const useThunkReducer = (reducer, initialState) => {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  const enhancedDispatch = (action) =>
+    typeof action === 'function' ? action(dispatch) : dispatch(action);
+
+  return [state, enhancedDispatch];
+};
+
+const fetchCharacters = (dispatch) => {
+  dispatch({ type: FETCHING });
+  fetch(endpoint + '/characters')
+    .then((response) => response.json())
+    .then((response) =>
+      dispatch({
+        type: RESPONSE_COMPLETE,
+        payload: { characters: response.characters },
+      }),
+    )
+    .catch((error) => dispatch({ type: ERROR, payload: { error } }));
+};
+
+const Application = () => {
+  const [state, dispatch] = useThunkReducer(reducer, initialState);
   const { characters } = state;
 
   return (
@@ -54,7 +77,13 @@ const Application = () => {
       </header>
       <main>
         <section className="sidebar">
-          <button onClick={() => {}}>Fetch Characters</button>
+          <button
+            onClick={() => {
+              dispatch(fetchCharacters);
+            }}
+          >
+            Fetch Characters
+          </button>
           <CharacterList characters={characters} />
         </section>
       </main>
